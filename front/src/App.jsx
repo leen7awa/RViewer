@@ -7,7 +7,7 @@ function App() {
   const upload = () => {
     const formData = new FormData()
     formData.append('file', file)
-    axios.post('http://localhost:3001/upload', formData)
+    axios.post(`${REACT_APP_API_URL}/upload`, formData)
       .then(res => { })
       .catch(err => console.log(err))
   }
