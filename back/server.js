@@ -1,48 +1,44 @@
-
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
-const path = require('path');
-require('dotenv').config();
+const dotenv = require('dotenv');
+const cloudinary = require('cloudinary').v2;
+const { Readable } = require('stream');
 
-const fs = require('fs');
-const uploadPath = path.join(__dirname, 'upload');
-
-
-
-if (!fs.existsSync(uploadPath)) {
-    fs.mkdirSync(uploadPath);
-}
-
+dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        // return cb(null, "./upload")
-        return cb(null, "./upload")
-    },
-    filename: function (req, file, cb) {
-        const ext = path.extname(file.originalname);
-        cb(null, "Hishbonit" + ext);
-    }
+// Cloudinary config
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
-})
+// Multer config (memory storage for stream)
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
-const upload = multer({ storage })
+app.post('/upload', upload.single('file'), async (req, res) => {
+  try {
+    const stream = cloudinary.uploader.upload_stream(
+      { resource_type: "auto" },
+      (error, result) => {
+        if (error) {
+          console.error(error);
+          return res.status(500).json({ message: "Upload failed", error });
+        }
+        res.status(200).json({ message: "Upload successful", url: result.secure_url });
+      }
+    );
 
-app.use('/upload', express.static(path.join(__dirname, 'upload')));
-
-app.post('/upload', upload.single('file'), (req, res) => {
-    try {
-        console.log(req.body)
-        console.log(req.file)
-        res.status(200).json({ message: 'File uploaded successfully', file: req.file });
-    } catch (error) {
-        console.error('Upload failed:', error);
-        res.status(500).json({ message: 'Upload failed', error });
-    }
+    Readable.from(req.file.buffer).pipe(stream);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Unexpected error', error: err });
+  }
 });
 
 const PORT = process.env.PORT || 3001;

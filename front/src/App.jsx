@@ -11,7 +11,7 @@ function App() {
 
   const upload = () => {
     const formData = new FormData()
-    formData.append('file', file)
+    formData.append('file', file);
     axios.post(`${serverLink}/upload`, formData)
       .then(res => {
         console.log(res.data);
