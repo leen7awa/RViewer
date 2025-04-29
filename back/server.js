@@ -48,7 +48,7 @@ app.post('/uploadReceipt', async (req, res) => {
       {
         resource_type: "raw",
         folder: `receipts/${userId}`,
-        public_id: fileName.replace('.pdf', '') // Cloudinary adds .pdf automatically if name ends with .pdf
+        public_id: `${fileName}`
       },
       async (error, result) => {
         if (error) {
