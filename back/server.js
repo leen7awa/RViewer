@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
-const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
 const dotenv = require('dotenv');
 const cloudinary = require('cloudinary').v2;
 const { Readable } = require('stream');
@@ -17,14 +18,17 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Multer config (memory storage for stream)
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
+app.post('/uploadReceipt', async (req, res) => {
+  const { userId } = req.body;
 
-app.post('/upload', upload.single('file'), async (req, res) => {
+  // Find the receipt file
+  const receiptPath = path.join(__dirname, 'receipts_folder', `${userId}.pdf`);
+
   try {
-    const stream = cloudinary.uploader.upload_stream(
-      { resource_type: "auto" },
+    const fileBuffer = fs.readFileSync(receiptPath); // Read the file
+
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { resource_type: "raw", folder: `receipts/${userId}` }, // Cloudinary treats PDFs as raw files
       (error, result) => {
         if (error) {
           console.error(error);
@@ -34,10 +38,11 @@ app.post('/upload', upload.single('file'), async (req, res) => {
       }
     );
 
-    Readable.from(req.file.buffer).pipe(stream);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Unexpected error', error: err });
+    Readable.from(fileBuffer).pipe(uploadStream); // Stream the buffer
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Failed to upload receipt', error });
   }
 });
 
