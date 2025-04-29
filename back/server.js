@@ -32,23 +32,23 @@ async function getShortUrl(longUrl) {
 
 app.post('/uploadReceipt', async (req, res) => {
   const { userId } = req.body;
-  const receiptPath = path.join(__dirname, 'receipts_folder', `${userId}.pdf`);
+  const receiptPath = path.join(__dirname, 'receipts_folder', `${userId}`); // no extension assumed
 
   try {
+    const ext = path.extname(receiptPath); // gets ".pdf", ".docx", etc.
     const fileBuffer = fs.readFileSync(receiptPath);
 
     const now = new Date();
     const dd = String(now.getDate()).padStart(2, '0');
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const yy = String(now.getFullYear()).slice(2);
-    const fileName = `${dd}${mm}${yy}_${userId}.pdf`;
-
+    const fileName = `${dd}_${mm}_${yy}_${userId}${ext}`;
 
     const stream = cloudinary.uploader.upload_stream(
       {
         resource_type: "raw",
         folder: `receipts/${userId}`,
-        public_id: `${fileName}`
+        public_id: fileName.replace(ext, '') // Cloudinary handles type by MIME
       },
       async (error, result) => {
         if (error) {
@@ -69,6 +69,7 @@ app.post('/uploadReceipt', async (req, res) => {
     res.status(500).json({ message: 'Failed to upload receipt', error });
   }
 });
+
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
