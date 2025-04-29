@@ -3,6 +3,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
+const axios = require('axios');
 const cloudinary = require('cloudinary').v2;
 const { Readable } = require('stream');
 
@@ -18,28 +19,40 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
+// Shortens a URL using TinyURL, with fallback
+async function getShortUrl(longUrl) {
+  try {
+    const response = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+    return response.data;
+  } catch (err) {
+    console.error("TinyURL failed, using original URL", err.message);
+    return longUrl; // Fallback to long URL
+  }
+}
+
 app.post('/uploadReceipt', async (req, res) => {
   const { userId } = req.body;
-
-  // Find the receipt file
   const receiptPath = path.join(__dirname, 'receipts_folder', `${userId}.pdf`);
 
   try {
-    const fileBuffer = fs.readFileSync(receiptPath); // Read the file
+    const fileBuffer = fs.readFileSync(receiptPath);
 
-    const uploadStream = cloudinary.uploader.upload_stream(
-      { resource_type: "raw", folder: `receipts/${userId}` }, // Cloudinary treats PDFs as raw files
-      (error, result) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { resource_type: "raw", folder: `receipts/${userId}` },
+      async (error, result) => {
         if (error) {
           console.error(error);
           return res.status(500).json({ message: "Upload failed", error });
         }
-        res.status(200).json({ message: "Upload successful", url: result.secure_url });
+
+        const longUrl = result.secure_url;
+        const shortUrl = await getShortUrl(longUrl);
+
+        res.status(200).json({ message: "Upload successful", url: shortUrl });
       }
     );
 
-    Readable.from(fileBuffer).pipe(uploadStream); // Stream the buffer
-
+    Readable.from(fileBuffer).pipe(stream);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Failed to upload receipt', error });
