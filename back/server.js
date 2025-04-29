@@ -37,8 +37,19 @@ app.post('/uploadReceipt', async (req, res) => {
   try {
     const fileBuffer = fs.readFileSync(receiptPath);
 
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yy = String(now.getFullYear()).slice(2);
+    const fileName = `${dd}${mm}${yy}_${userId}.pdf`;
+
+
     const stream = cloudinary.uploader.upload_stream(
-      { resource_type: "raw", folder: `receipts/${userId}` },
+      {
+        resource_type: "raw",
+        folder: `receipts/${userId}`,
+        public_id: fileName.replace('.pdf', '') // Cloudinary adds .pdf automatically if name ends with .pdf
+      },
       async (error, result) => {
         if (error) {
           console.error(error);
